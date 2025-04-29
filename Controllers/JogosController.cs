@@ -57,6 +57,15 @@ namespace DevSteamAPI.Controllers
                 return BadRequest();
             }
 
+            // Copiar o preço do jogo para o preço original
+            jogo.PrecoOriginal = jogo.Preco;
+
+            // Calcular o preço com desconto
+            if (jogo.Desconto > 0)
+            {
+                jogo.Preco = jogo.Preco - (jogo.Preco * (jogo.Desconto / 100));
+            }
+
             _context.Entry(jogo).State = EntityState.Modified;
 
             try
@@ -83,6 +92,15 @@ namespace DevSteamAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Jogo>> PostJogo(Jogo jogo)
         {
+            // Copiar o preço do jogo para o preço original
+            jogo.PrecoOriginal = jogo.Preco;
+
+            // Calcular o preço com desconto
+            if (jogo.Desconto > 0)
+            {
+                jogo.Preco = jogo.Preco - (jogo.Preco * (jogo.Desconto / 100));
+            }
+
             _context.Jogos.Add(jogo);
             await _context.SaveChangesAsync();
 
@@ -199,5 +217,48 @@ namespace DevSteamAPI.Controllers
             return Ok(new { Base64Image = $"data:image/{Path.GetExtension(userImagePath).TrimStart('.')};base64,{base64Image}" });
         }
 
+
+        [HttpPut("AplicarDesconto")]
+        public async Task<IActionResult> AplicarDesconto(Guid jogoId, int desconto)
+        {
+            var jogo = await _context.Jogos.FindAsync(jogoId);
+            if (jogo == null)
+            {
+                return NotFound("Jogo não encontrado.");
+            }
+
+            if (desconto < 0 || desconto > 100)
+            {
+                return BadRequest("Desconto deve ser entre 0 e 100.");
+            }
+
+            jogo.Desconto = desconto;
+            jogo.Preco = (decimal)(jogo.PrecoOriginal - (jogo.PrecoOriginal * (desconto / 100)));
+
+            // Atualiza no banco de dados
+            _context.Entry(jogo).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+            return Ok(jogo);
+        }
+
+        // [HttpPUT] : Remover um Desconto
+        [HttpPut("RemoverDesconto")]
+        public async Task<IActionResult> RemoverDesconto(Guid jogoId)
+        {
+            // Verifica se o jogo existe
+            var jogo = await _context.Jogos.FindAsync(jogoId);
+            if (jogo == null)
+                return NotFound("Jogo não encontrado.");
+
+            // Remove o desconto
+            jogo.Desconto = 0;
+            jogo.Preco = (decimal)jogo.PrecoOriginal;
+
+            // Atualiza o jogo no banco de dados
+            _context.Entry(jogo).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return Ok(jogo);
+        }
     }
 }
