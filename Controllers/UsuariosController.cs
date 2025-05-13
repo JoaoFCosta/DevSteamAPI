@@ -231,6 +231,19 @@ namespace DevSteamAPI.Controllers
 
             return BadRequest(result.Errors);
         }
+
+        [HttpGet("GetRoleByUser")]
+        public async Task<IActionResult> GetRoleByUser(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return NotFound("Usuário não encontrado.");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles == null || !roles.Any())
+                return NotFound("Nenhum perfil encontrado para o usuário");
+            return Ok(roles);
+        }
     }
 
 }

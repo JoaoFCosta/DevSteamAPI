@@ -78,6 +78,7 @@ namespace DevSteamAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Cupom>> PostCupom(Cupom cupom)
         {
+            cupom.Ativo = true;
             _context.Cupons.Add(cupom);
             await _context.SaveChangesAsync();
 

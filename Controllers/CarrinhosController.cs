@@ -168,7 +168,7 @@ namespace DevSteamAPI.Controllers
             return Ok();
         }
 
-        [HttpPost]
+        [HttpPost("AdicionarCupom")]
         public async Task<IActionResult> AdicionarCupom(Guid id, Guid cupomId)
         {
             // Se carrinho de compra existe

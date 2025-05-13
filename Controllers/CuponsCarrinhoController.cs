@@ -105,44 +105,93 @@ namespace DevSteamAPI.Controllers
             return _context.CuponsCarrinho.Any(e => e.CupomCarrinhoId == id);
         }
 
-        // Método POST para aplicar um cupom ao carrinho
-        [HttpPost]
-        [Route("AplicarCupom/{id}")]
-        public async Task<IActionResult> AplicarCupom(Guid carrinhoId, Guid cupomId)
+        [HttpPost("AplicarCupom")]
+
+
+        public async Task<IActionResult> AplicarCupom(Guid idCupom, Guid idCarrinho)
         {
-            //Verificar se o carrinho existe
-            var carrinho = await _context.Carrinhos.FindAsync(carrinhoId);
+
+            // Verificar Se o idCarrinho exite no contexto Carrinhos;
+            var carrinho = await _context.Carrinhos.FindAsync(idCarrinho);
             if (carrinho == null)
             {
-                return NotFound("Carrinho não encontrado");
+                return NotFound("Carrinho não Encontrado!");
             }
 
-            //Verificar se o cupom existe
-            var cupom = await _context.Cupons.FindAsync(cupomId);
+            // Verificar se o idCupom exite no contexto Cupons;
+            var cupom = await _context.Cupons.FindAsync(idCupom);
             if (cupom == null)
             {
-                return NotFound("Cupom não encontrado");
+                return NotFound("Cupom não Encontrado!");
             }
 
-            //Verifica se o cupom é válido e está ativo
-            if (cupom.DataValidade < DateTime.Now || cupom.Ativo == false)
+            // Verificar se o cupom já foi aplicado no carrinho
+            var cupomCarrinho = await _context.CuponsCarrinho
+                .FirstOrDefaultAsync(cc => cc.CarrinhoId == idCarrinho && cc.CupomId == idCupom);
+            if (cupomCarrinho != null)
             {
-                return BadRequest("Cupom inválido ou inativo.");
+                return BadRequest("Cupom já aplicado no carrinho!");
             }
 
-            //Verificar se o carrinho foi finalizado
-            if (carrinho.Finalizado)
+            // Verificar se o carrinho já foi finalizado
+            if (carrinho.Finalizado == true)
             {
-                return BadRequest("Carrinho já finalizado");
+                return BadRequest("Carrinho já finalizado!");
             }
 
+            // Verificando a data de validade do cupom, somente se a data de validade for diferente de nulo
+            if (cupom.DataValidade != null)
+            {
+                if (cupom.DataValidade < DateTime.Now)
+                {
+                    // Se a data de validade for menor que a data atual, o cupom está expirado
+                    cupom.Ativo = false;
+                    return BadRequest("Cupom expirado!");
+                }
+            }
+
+            // Verificando o limite de uso do cupom
+            if (cupom.LimiteUso != null)
+            {
+                if (cupom.LimiteUso <= 0)
+                {
+                    return BadRequest("Cupom sem limite de uso!");
+                }
+            }
+
+            // Verfiicando se o cupom esta ativo
+            if (cupom.Ativo == false)
+            {
+                return BadRequest("Cupom desativado!");
+            }
+
+            // Aplicando o cupom no carrinho 
+            cupomCarrinho = new CupomCarrinho
+            {
+                CupomCarrinhoId = Guid.NewGuid(),
+                CarrinhoId = idCarrinho,
+                CupomId = idCupom,
+                DataAplicacao = DateTime.Now
+            };
+
+            _context.CuponsCarrinho.Add(cupomCarrinho);
+
+            // Atualizando o limite de uso do cupom, caso seja diferente de nulo
+            // Se atingir o limite de uso, o cupom será desativado
+            if (cupom.LimiteUso != null)
+            {
+                cupom.LimiteUso--;
+                if (cupom.LimiteUso == 0)
+                {
+                    cupom.Ativo = false;
+                }
+            }
             _context.Entry(cupom).State = EntityState.Modified;
             await _context.SaveChangesAsync();
 
-            return Ok();
 
+            return Ok(cupomCarrinho);
 
         }
-
     }
 }
